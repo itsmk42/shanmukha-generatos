@@ -52,7 +52,7 @@ async function uploadFile(file: File, filename: string): Promise<string> {
   // Try S3 upload first if configured
   if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
     try {
-      const { uploadToS3 } = await import('../../../../../backend/utils/s3-upload');
+      const { uploadToS3 } = await import('../../../utils/s3Upload');
       const buffer = Buffer.from(await file.arrayBuffer());
       const result = await uploadToS3(buffer, filename, file.type);
       return result.url;
