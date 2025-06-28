@@ -16,6 +16,7 @@ import {
   generateFileId,
   formatFileSize,
   cleanupPreviews,
+  uploadFile,
   SUPPORTED_FILE_TYPES,
   MAX_FILE_SIZE,
   MAX_FILES,
@@ -75,6 +76,9 @@ export default function FileUpload({
     }));
 
     setUploadedFiles((prev) => [...prev, ...newFiles]);
+
+    // Automatically start uploading the new files
+    uploadNewFiles(newFiles);
   }, [uploadedFiles.length, maxFiles]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -95,6 +99,29 @@ export default function FileUpload({
     });
   };
 
+  const retryUpload = async (fileId: string) => {
+    const fileToRetry = uploadedFiles.find(f => f.id === fileId);
+    if (!fileToRetry) return;
+
+    try {
+      // Reset status to uploading
+      updateFileStatus(fileId, 'uploading');
+      updateFileProgress(fileId, 0);
+
+      // Upload the file
+      const url = await uploadFile(fileToRetry.file, (progress) => {
+        updateFileProgress(fileId, progress);
+      });
+
+      // Set status to success with URL
+      updateFileStatus(fileId, 'success', url);
+    } catch (error) {
+      // Set status to error
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      updateFileStatus(fileId, 'error', undefined, errorMessage);
+    }
+  };
+
   const updateFileProgress = (fileId: string, progress: number) => {
     setUploadedFiles((prev) =>
       prev.map((file) =>
@@ -109,6 +136,28 @@ export default function FileUpload({
         file.id === fileId ? { ...file, status, url, error } : file
       )
     );
+  };
+
+  // Function to upload new files automatically
+  const uploadNewFiles = async (filesToUpload: UploadedFile[]) => {
+    for (const fileObj of filesToUpload) {
+      try {
+        // Set status to uploading
+        updateFileStatus(fileObj.id, 'uploading');
+
+        // Upload the file
+        const url = await uploadFile(fileObj.file, (progress) => {
+          updateFileProgress(fileObj.id, progress);
+        });
+
+        // Set status to success with URL
+        updateFileStatus(fileObj.id, 'success', url);
+      } catch (error) {
+        // Set status to error
+        const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+        updateFileStatus(fileObj.id, 'error', undefined, errorMessage);
+      }
+    }
   };
 
   const getStatusIcon = (file: UploadedFile) => {
@@ -223,9 +272,18 @@ export default function FileUpload({
                     </div>
                   )}
 
-                  {/* Error Message */}
-                  {file.status === 'error' && file.error && (
-                    <p className="text-xs text-red-600">{file.error}</p>
+                  {/* Error Message with Retry Button */}
+                  {file.status === 'error' && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-red-600">{file.error}</p>
+                      <button
+                        type="button"
+                        onClick={() => retryUpload(file.id)}
+                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Retry upload
+                      </button>
+                    </div>
                   )}
 
                   {/* Success Message */}

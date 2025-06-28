@@ -49,26 +49,34 @@ async function ensureUploadDir() {
 
 // Upload to S3 (if configured) or local storage
 async function uploadFile(file: File, filename: string): Promise<string> {
+  console.log('Starting file upload:', filename, 'Size:', file.size, 'Type:', file.type);
+
   // Try S3 upload first if configured
   if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
     try {
+      console.log('Attempting S3 upload...');
       const { uploadToS3 } = await import('../../../../utils/s3Upload');
       const buffer = Buffer.from(await file.arrayBuffer());
       const result = await uploadToS3(buffer, filename, file.type);
+      console.log('S3 upload successful:', result.url);
       return result.url;
     } catch (error) {
       console.warn('S3 upload failed, falling back to local storage:', error);
     }
+  } else {
+    console.log('No AWS credentials found, using local storage');
   }
 
   // Fallback to local storage
+  console.log('Using local storage fallback...');
   await ensureUploadDir();
   const buffer = Buffer.from(await file.arrayBuffer());
   const filePath = path.join(UPLOAD_DIR, filename);
   await writeFile(filePath, buffer);
-  
-  // Return public URL
-  return `/uploads/generators/${filename}`;
+
+  const publicUrl = `/uploads/generators/${filename}`;
+  console.log('Local upload successful:', publicUrl);
+  return publicUrl;
 }
 
 export async function POST(request: NextRequest) {

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import FileUpload from '@/components/FileUpload';
-import { UploadedFile, uploadFiles } from '@/utils/fileUpload';
+import { UploadedFile } from '@/utils/fileUpload';
 
 export default function AddGenerator() {
   const [isLoading, setIsLoading] = useState(false);
@@ -83,44 +83,7 @@ export default function AddGenerator() {
     setUploadedFiles(files);
   };
 
-  const handleFileUpload = async () => {
-    if (uploadedFiles.length === 0) return [];
 
-    setIsUploading(true);
-    const uploadedUrls: string[] = [];
-
-    try {
-      await uploadFiles(
-        uploadedFiles.filter(f => f.status === 'pending'),
-        (fileId, progress) => {
-          setUploadedFiles(prev =>
-            prev.map(file =>
-              file.id === fileId ? { ...file, progress, status: 'uploading' } : file
-            )
-          );
-        },
-        (fileId, url) => {
-          setUploadedFiles(prev =>
-            prev.map(file =>
-              file.id === fileId ? { ...file, url, status: 'success' } : file
-            )
-          );
-          uploadedUrls.push(url);
-        },
-        (fileId, error) => {
-          setUploadedFiles(prev =>
-            prev.map(file =>
-              file.id === fileId ? { ...file, error, status: 'error' } : file
-            )
-          );
-        }
-      );
-
-      return uploadedUrls;
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,10 +115,16 @@ export default function AddGenerator() {
         throw new Error('Please enter a valid WhatsApp ID (10-15 digits)');
       }
 
-      // Check if there are pending uploads
+      // Check if there are pending or uploading files
       const hasPendingUploads = uploadedFiles.some(f => f.status === 'pending' || f.status === 'uploading');
       if (hasPendingUploads) {
         throw new Error('Please wait for all file uploads to complete');
+      }
+
+      // Check if there are any failed uploads
+      const hasFailedUploads = uploadedFiles.some(f => f.status === 'error');
+      if (hasFailedUploads) {
+        throw new Error('Some files failed to upload. Please remove them or try again.');
       }
 
       // Collect all image URLs
