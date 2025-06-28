@@ -171,7 +171,8 @@ AWS_S3_BUCKET=your-bucket-name
 2. Enter admin password (default: admin123)
 3. Review pending listings
 4. Approve or reject submissions
-5. Monitor system statistics
+5. Add generators manually with file upload
+6. Monitor system statistics
 
 ## 🎨 Customization
 
