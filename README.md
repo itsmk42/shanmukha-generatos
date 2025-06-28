@@ -1,4 +1,6 @@
-# Shanmukha Generators - WhatsApp to Website Automation
+# Shanmukha Generators
+
+> **Status**: Dependencies fixed for Vercel deployment ✅ - WhatsApp to Website Automation
 
 A full-stack web application that automatically converts WhatsApp messages into a public-facing generator catalog. Built with Next.js, Node.js, MongoDB, and Redis.
 
