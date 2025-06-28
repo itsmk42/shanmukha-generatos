@@ -8,6 +8,7 @@ import {
   EyeIcon,
   ClockIcon,
   ExclamationTriangleIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 
 interface Generator {
@@ -190,12 +191,21 @@ export default function AdminDashboard() {
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-600">Shanmukha Generators</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Logout
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => router.push('/admin/add-generator')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2"
+              >
+                <PlusIcon className="h-4 w-4" />
+                <span>Add Generator</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -281,6 +291,32 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mb-6 bg-white rounded-lg shadow-sm p-4">
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Quick Actions</h3>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => router.push('/admin/add-generator')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2"
+            >
+              <PlusIcon className="h-4 w-4" />
+              <span>Add Generator Manually</span>
+            </button>
+            <button
+              onClick={() => setSelectedStatus('pending_review')}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+            >
+              Review Pending ({statusStats.pending_review})
+            </button>
+            <button
+              onClick={() => setSelectedStatus('failed_parsing')}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+            >
+              Fix Failed Parsing ({statusStats.failed_parsing})
+            </button>
           </div>
         </div>
 
