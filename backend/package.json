@@ -1,0 +1,32 @@
+{
+  "name": "shanmukha-generators-backend",
+  "version": "1.0.0",
+  "description": "Backend services for Shanmukha Generators WhatsApp automation",
+  "main": "index.js",
+  "scripts": {
+    "start": "node services/ingestion-service.js",
+    "start:parser": "node services/parser-service.js",
+    "dev": "nodemon services/ingestion-service.js",
+    "dev:parser": "nodemon services/parser-service.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["whatsapp", "automation", "generators", "webhook"],
+  "author": "Shanmukha Generators",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^8.0.3",
+    "redis": "^4.6.10",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2",
+    "multer": "^1.4.5-lts.1",
+    "aws-sdk": "^2.1498.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
