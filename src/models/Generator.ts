@@ -67,8 +67,7 @@ const GeneratorSchema = new mongoose.Schema({
   audit_trail: {
     whatsapp_message_id: {
       type: String,
-      required: true,
-      unique: true
+      required: true
     },
     original_message_text: String,
     parsed_at: {
