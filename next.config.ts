@@ -6,11 +6,17 @@ const nextConfig: NextConfig = {
 
   // Image optimization
   images: {
-    domains: ['via.placeholder.com'],
+    domains: ['via.placeholder.com', 'localhost'],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/uploads/**',
       },
     ],
   },
@@ -21,7 +27,7 @@ const nextConfig: NextConfig = {
   },
 
   // External packages for server components
-  serverExternalPackages: ['mongoose'],
+  serverExternalPackages: ['mongoose', 'sharp'],
 };
 
 export default nextConfig;

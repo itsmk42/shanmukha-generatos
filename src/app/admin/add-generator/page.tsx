@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import FileUpload from '@/components/FileUpload';
+import { UploadedFile, uploadFiles } from '@/utils/fileUpload';
 
 export default function AddGenerator() {
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +25,9 @@ export default function AddGenerator() {
   });
 
   const [imageUrls, setImageUrls] = useState<string[]>(['']);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [imageMode, setImageMode] = useState<'upload' | 'url'>('upload');
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -74,6 +79,49 @@ export default function AddGenerator() {
     }));
   };
 
+  const handleFilesChange = (files: UploadedFile[]) => {
+    setUploadedFiles(files);
+  };
+
+  const handleFileUpload = async () => {
+    if (uploadedFiles.length === 0) return [];
+
+    setIsUploading(true);
+    const uploadedUrls: string[] = [];
+
+    try {
+      await uploadFiles(
+        uploadedFiles.filter(f => f.status === 'pending'),
+        (fileId, progress) => {
+          setUploadedFiles(prev =>
+            prev.map(file =>
+              file.id === fileId ? { ...file, progress, status: 'uploading' } : file
+            )
+          );
+        },
+        (fileId, url) => {
+          setUploadedFiles(prev =>
+            prev.map(file =>
+              file.id === fileId ? { ...file, url, status: 'success' } : file
+            )
+          );
+          uploadedUrls.push(url);
+        },
+        (fileId, error) => {
+          setUploadedFiles(prev =>
+            prev.map(file =>
+              file.id === fileId ? { ...file, error, status: 'error' } : file
+            )
+          );
+        }
+      );
+
+      return uploadedUrls;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -82,7 +130,7 @@ export default function AddGenerator() {
 
     try {
       // Validate required fields
-      if (!formData.brand || !formData.model || !formData.price || !formData.hours_run || 
+      if (!formData.brand || !formData.model || !formData.price || !formData.hours_run ||
           !formData.location_text || !formData.description || !formData.seller_whatsapp_id) {
         throw new Error('Please fill in all required fields');
       }
@@ -90,11 +138,11 @@ export default function AddGenerator() {
       // Validate price and hours are numbers
       const price = parseInt(formData.price);
       const hours = parseInt(formData.hours_run);
-      
+
       if (isNaN(price) || price <= 0) {
         throw new Error('Please enter a valid price');
       }
-      
+
       if (isNaN(hours) || hours < 0) {
         throw new Error('Please enter valid running hours');
       }
@@ -102,6 +150,25 @@ export default function AddGenerator() {
       // Validate WhatsApp ID format
       if (!/^\d{10,15}$/.test(formData.seller_whatsapp_id)) {
         throw new Error('Please enter a valid WhatsApp ID (10-15 digits)');
+      }
+
+      // Check if there are pending uploads
+      const hasPendingUploads = uploadedFiles.some(f => f.status === 'pending' || f.status === 'uploading');
+      if (hasPendingUploads) {
+        throw new Error('Please wait for all file uploads to complete');
+      }
+
+      // Collect all image URLs
+      let allImageUrls: string[] = [];
+
+      // Add uploaded file URLs
+      const successfulUploads = uploadedFiles.filter(f => f.status === 'success' && f.url);
+      allImageUrls = [...allImageUrls, ...successfulUploads.map(f => f.url!)];
+
+      // Add manual URLs (if using URL mode)
+      if (imageMode === 'url') {
+        const validUrls = formData.images.filter(url => url.trim() !== '');
+        allImageUrls = [...allImageUrls, ...validUrls];
       }
 
       const response = await fetch('/api/admin/generators/manual', {
@@ -118,7 +185,7 @@ export default function AddGenerator() {
           description: formData.description.trim(),
           seller_whatsapp_id: formData.seller_whatsapp_id.trim(),
           seller_display_name: formData.seller_display_name.trim() || undefined,
-          images: formData.images.map(url => ({ url: url.trim() }))
+          images: allImageUrls.map(url => ({ url: url.trim() }))
         }),
       });
 
@@ -139,6 +206,8 @@ export default function AddGenerator() {
           images: []
         });
         setImageUrls(['']);
+        setUploadedFiles([]);
+        setImageMode('upload');
         
         // Redirect to dashboard after 2 seconds
         setTimeout(() => {
@@ -317,36 +386,95 @@ export default function AddGenerator() {
             {/* Images */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Images</h3>
-              <div className="space-y-3">
-                {imageUrls.map((url, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <PhotoIcon className="h-5 w-5 text-gray-400" />
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={(e) => handleImageUrlChange(index, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://example.com/image.jpg"
-                    />
-                    {imageUrls.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeImageUrlField(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <XMarkIcon className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addImageUrlField}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                >
-                  + Add another image URL
-                </button>
+
+              {/* Image Mode Tabs */}
+              <div className="mb-4">
+                <div className="border-b border-gray-200">
+                  <nav className="-mb-px flex space-x-8">
+                    <button
+                      type="button"
+                      onClick={() => setImageMode('upload')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        imageMode === 'upload'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Upload Files
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImageMode('url')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        imageMode === 'url'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Enter URLs
+                    </button>
+                  </nav>
+                </div>
               </div>
+
+              {/* Upload Mode */}
+              {imageMode === 'upload' && (
+                <div className="space-y-4">
+                  <FileUpload
+                    onFilesChange={handleFilesChange}
+                    maxFiles={10}
+                    disabled={isLoading}
+                    existingFiles={uploadedFiles}
+                  />
+
+                  {uploadedFiles.length > 0 && (
+                    <div className="text-sm text-gray-600">
+                      <p>
+                        {uploadedFiles.filter(f => f.status === 'success').length} of {uploadedFiles.length} files uploaded successfully
+                      </p>
+                      {uploadedFiles.some(f => f.status === 'error') && (
+                        <p className="text-red-600 mt-1">
+                          Some files failed to upload. Please remove them or try again.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* URL Mode */}
+              {imageMode === 'url' && (
+                <div className="space-y-3">
+                  {imageUrls.map((url, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <PhotoIcon className="h-5 w-5 text-gray-400" />
+                      <input
+                        type="url"
+                        value={url}
+                        onChange={(e) => handleImageUrlChange(index, e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="https://example.com/image.jpg"
+                      />
+                      {imageUrls.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeImageUrlField(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <XMarkIcon className="h-5 w-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addImageUrlField}
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    + Add another image URL
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Error/Success Messages */}
@@ -373,10 +501,13 @@ export default function AddGenerator() {
               </button>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || isUploading || uploadedFiles.some(f => f.status === 'uploading')}
                 className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Adding...' : 'Add Generator'}
+                {isLoading ? 'Adding Generator...' :
+                 isUploading ? 'Uploading Files...' :
+                 uploadedFiles.some(f => f.status === 'uploading') ? 'Files Uploading...' :
+                 'Add Generator'}
               </button>
             </div>
           </form>
