@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test File Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .file-input {
+            margin: 20px 0;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <h1>File Upload Test</h1>
+    <p>This page tests the file upload functionality for the Shanmukha Generators admin panel.</p>
+    
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        <p>Click here to select files or drag and drop</p>
+        <p><small>Supports: JPEG, PNG, GIF, WebP • Max 5MB per file</small></p>
+    </div>
+    
+    <input type="file" id="fileInput" class="file-input" multiple accept="image/*" style="display: none;">
+    
+    <div id="results"></div>
+    
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const results = document.getElementById('results');
+        
+        fileInput.addEventListener('change', handleFiles);
+        
+        function handleFiles(event) {
+            const files = Array.from(event.target.files);
+            results.innerHTML = '';
+            
+            files.forEach(file => {
+                uploadFile(file);
+            });
+        }
+        
+        async function uploadFile(file) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'result loading';
+            resultDiv.innerHTML = `<strong>${file.name}</strong> - Uploading...`;
+            results.appendChild(resultDiv);
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/api/admin/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>${file.name}</strong> - Upload successful!<br>
+                        <small>URL: ${data.data.url}</small><br>
+                        <small>Size: ${(data.data.size / 1024).toFixed(2)} KB</small>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <strong>${file.name}</strong> - Upload failed<br>
+                        <small>Error: ${data.error}</small>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>${file.name}</strong> - Upload failed<br>
+                    <small>Error: ${error.message}</small>
+                `;
+            }
+        }
+        
+        // Drag and drop functionality
+        const uploadArea = document.querySelector('.upload-area');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#007bff';
+            uploadArea.style.backgroundColor = '#f8f9fa';
+        });
+        
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#ccc';
+            uploadArea.style.backgroundColor = 'transparent';
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#ccc';
+            uploadArea.style.backgroundColor = 'transparent';
+            
+            const files = Array.from(e.dataTransfer.files);
+            results.innerHTML = '';
+            
+            files.forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    uploadFile(file);
+                } else {
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<strong>${file.name}</strong> - Invalid file type. Please select an image.`;
+                    results.appendChild(resultDiv);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

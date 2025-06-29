@@ -23,9 +23,9 @@ export const SUPPORTED_FILE_TYPES = {
   'image/webp': ['.webp']
 };
 
-// File size limits
-export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
-export const MAX_TOTAL_SIZE = 25 * 1024 * 1024; // 25MB total
+// File size limits (Vercel Blob limits)
+export const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB per file (Vercel Blob limit)
+export const MAX_TOTAL_SIZE = 20 * 1024 * 1024; // 20MB total
 export const MAX_FILES = 10;
 
 /**

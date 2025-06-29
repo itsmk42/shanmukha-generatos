@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
 import jwt from 'jsonwebtoken';
+import { uploadBufferToVercelBlob, validateFileForBlob } from '@/utils/vercelBlobUpload';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // File upload configuration
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB (Vercel Blob limit)
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'generators');
 
 // Verify admin authentication
 async function verifyAdmin(request: NextRequest) {
@@ -27,56 +24,28 @@ async function verifyAdmin(request: NextRequest) {
   }
 }
 
-// Generate unique filename
-function generateUniqueFilename(originalName: string): string {
-  const timestamp = Date.now();
-  const randomString = Math.random().toString(36).substring(7);
-  const extension = path.extname(originalName);
-  const baseName = path.basename(originalName, extension);
-  
-  // Sanitize filename
-  const sanitizedBaseName = baseName.replace(/[^a-zA-Z0-9-_]/g, '_');
-  
-  return `${timestamp}_${randomString}_${sanitizedBaseName}${extension}`;
-}
+// Upload to Vercel Blob
+async function uploadFile(file: File): Promise<string> {
+  console.log('Starting Vercel Blob upload:', file.name, 'Size:', file.size, 'Type:', file.type);
 
-// Ensure upload directory exists
-async function ensureUploadDir() {
-  if (!existsSync(UPLOAD_DIR)) {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-  }
-}
-
-// Upload to S3 (if configured) or local storage
-async function uploadFile(file: File, filename: string): Promise<string> {
-  console.log('Starting file upload:', filename, 'Size:', file.size, 'Type:', file.type);
-
-  // Try S3 upload first if configured
-  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-    try {
-      console.log('Attempting S3 upload...');
-      const { uploadToS3 } = await import('../../../../utils/s3Upload');
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const result = await uploadToS3(buffer, filename, file.type);
-      console.log('S3 upload successful:', result.url);
-      return result.url;
-    } catch (error) {
-      console.warn('S3 upload failed, falling back to local storage:', error);
-    }
-  } else {
-    console.log('No AWS credentials found, using local storage');
+  // Validate file before upload
+  const validation = validateFileForBlob(file);
+  if (!validation.isValid) {
+    throw new Error(validation.error || 'File validation failed');
   }
 
-  // Fallback to local storage
-  console.log('Using local storage fallback...');
-  await ensureUploadDir();
+  // Convert file to buffer
   const buffer = Buffer.from(await file.arrayBuffer());
-  const filePath = path.join(UPLOAD_DIR, filename);
-  await writeFile(filePath, buffer);
 
-  const publicUrl = `/uploads/generators/${filename}`;
-  console.log('Local upload successful:', publicUrl);
-  return publicUrl;
+  // Upload to Vercel Blob
+  const result = await uploadBufferToVercelBlob(buffer, file.name, file.type);
+
+  if (result.error) {
+    throw new Error(result.error);
+  }
+
+  console.log('Vercel Blob upload successful:', result.url);
+  return result.url;
 }
 
 export async function POST(request: NextRequest) {
@@ -129,11 +98,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique filename
-    const filename = generateUniqueFilename(file.name);
-
-    // Upload file
-    const url = await uploadFile(file, filename);
+    // Upload file to Vercel Blob
+    const url = await uploadFile(file);
 
     return NextResponse.json({
       success: true,
